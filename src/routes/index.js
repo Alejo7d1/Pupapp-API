@@ -1,0 +1,28 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { validateToken } from '../middleware/auth.js';
+import { register, login } from '../controllers/auth.js';
+import { getAllProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../controllers/products.js';
+import { getAllOrders, getOrderDetails, createOrder, updateOrderStatus, deleteOrder } from '../controllers/orders.js';
+
+const upload = multer({ storage: multer.memoryStorage() });
+const router = Router();
+
+// Rutas Públicas (Autenticación del Tenant)
+router.post('/auth/register', register);
+router.post('/auth/login', login);
+
+// Rutas Protegidas por Token de Validación de Acceso
+router.get('/products', validateToken, getAllProducts);
+router.get('/products/:id', validateToken, getProductById);
+router.post('/products', validateToken, upload.single('image'), createProduct);
+router.put('/products/:id', validateToken, upload.single('image'), updateProduct);
+router.delete('/products/:id', validateToken, deleteProduct);
+
+router.get('/orders', validateToken, getAllOrders);
+router.get('/orders/:id', validateToken, getOrderDetails);
+router.post('/orders', validateToken, createOrder);
+router.patch('/orders/:id/status', validateToken, updateOrderStatus);
+router.delete('/orders/:id', validateToken, deleteOrder);
+
+export default router;
