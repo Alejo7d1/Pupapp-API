@@ -1,6 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-// Inicialización perezosa del cliente para asegurar que process.env esté cargado
 let _s3Client = null;
 
 const getS3Client = () => {
@@ -18,7 +17,6 @@ const getS3Client = () => {
 };
 
 export const uploadToR2 = async (file, accessName) => {
-  // Usamos trim() por si hay espacios accidentales al final de las líneas en el .env
   const bucketName = process.env.R2_BUCKET_NAME?.trim();
   const publicUrlBase = process.env.R2_PUBLIC_URL?.trim();
   const accountId = process.env.R2_ACCOUNT_ID?.trim();
@@ -37,7 +35,7 @@ export const uploadToR2 = async (file, accessName) => {
     throw new Error(`Configuración de R2 incompleta en .env. Faltan: ${missingVars.join(", ")}`);
   }
 
-  // Guardamos en una carpeta con el nombre del restaurante
+  // Guardado en una carpeta con el nombre del restaurante
   const fileName = `${accessName}/products/${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
   
   const command = new PutObjectCommand({

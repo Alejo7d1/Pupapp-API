@@ -22,7 +22,7 @@ export const getProductById = async (req, res) => {
   const [item] = await db.select().from(product).where(
     and(eq(product.id, parseInt(id)), eq(product.restaurant_id, req.restaurant_id))
   );
-  if (!item) return res.status(404).json({ error: 'Producto no encontrado' });
+  if (!item) return res.status(404).json({ error: 'Product not found' });
   res.json(item);
 };
 
@@ -43,11 +43,11 @@ export const createProduct = async (req, res) => {
       image_url: finalImageUrl
     }).returning();
 
-    if (!newProduct) throw new Error("La base de datos no retornó el producto creado");
+    if (!newProduct) throw new Error("database not returning new product");
 
     res.status(201).json(newProduct);
   } catch (error) {
-    return res.status(500).json({ error: 'Error al crear producto', details: error.message });
+    return res.status(500).json({ error: 'Error creating product', details: error.message });
   }
 };
 
@@ -65,7 +65,7 @@ export const updateProduct = async (req, res) => {
     .where(and(eq(product.id, parseInt(id)), eq(product.restaurant_id, req.restaurant_id)))
     .returning();
 
-  if (!updatedProduct) return res.status(404).json({ error: 'Producto no encontrado o no autorizado' });
+  if (!updatedProduct) return res.status(404).json({ error: 'Product not found or not authorized' });
   res.json(updatedProduct);
 };
 
@@ -75,7 +75,7 @@ export const deleteProduct = async (req, res) => {
     .where(and(eq(product.id, parseInt(id)), eq(product.restaurant_id, req.restaurant_id)))
     .returning();
 
-  if (!deleted) return res.status(404).json({ error: 'Producto no encontrado o no autorizado' });
+  if (!deleted) return res.status(404).json({ error: 'Product not found or not authorized' });
 
   // Si el producto tenía una imagen en R2, la eliminamos
   if (deleted.image_url) {
@@ -86,5 +86,5 @@ export const deleteProduct = async (req, res) => {
     }
   }
 
-  res.json({ message: 'Producto eliminado' });
+  res.json({ message: 'Product deleted' });
 };

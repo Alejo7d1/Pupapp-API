@@ -9,5 +9,5 @@ const pool = new pg.Pool({
   }
 });
 
-// Inicializamos Drizzle con el driver de node-postgres
+
 export const db = drizzle(pool);

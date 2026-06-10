@@ -1,6 +1,6 @@
 # Pupapp API
 
-Bienvenido a la documentación de la API de Pupapp. Esta API está diseñada para gestionar restaurantes, productos y órdenes, sirviendo como backend para una aplicación móvil. La API implementa un modelo multi-inquilino (multi-tenant) donde cada restaurante es una entidad independiente con sus propios datos.
+Esta API está diseñada para gestionar restaurantes especialmente pupuserias, productos y órdenes, sirviendo como backend para una aplicación móvil. La API implementa un modelo multi-inquilino (multi-tenant) donde cada restaurante es una entidad independiente con sus propios datos.
 
 ## Autenticación y Tokens (Identificador Unitario por Restaurante)
 
@@ -26,8 +26,6 @@ Este diseño garantiza que el token JWT no solo autentica al usuario, sino que t
 ---
 
 ## Rutas de Acceso (Endpoints)
-
-A continuación, se detallan las rutas disponibles en la API, categorizadas por su nivel de protección.
 
 ### Rutas Públicas (Autenticación)
 
@@ -148,7 +146,3 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
 ##### 5. Eliminar una Orden
 *   **URL:** `DELETE /api/orders/:id`
 *   **Descripción:** Elimina una orden específica del restaurante autenticado. Debido a la relación `ON DELETE CASCADE`, todos los ítems de la orden también serán eliminados.
-```
-<!--
-[PROMPT_SUGGESTION]¿Cómo puedo agregar un campo "stock" a los productos y validar que haya disponibilidad antes de crear una orden?[/PROMPT_SUGGESTION]
-[PROMPT_SUGGESTION]Modifica el endpoint de login para que devuelva también el logo del restaurante si tuviera uno, guardado en R2.[/PROMPT_SUGGESTION]

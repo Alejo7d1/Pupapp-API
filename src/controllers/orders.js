@@ -1,24 +1,25 @@
 import { db } from '../db/index.js';
 import { orderTable, orderItem, product } from '../db/schema.js';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, notInArray, desc, asc } from 'drizzle-orm';
 
 export const getAllOrders = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
 
-  // 1. Obtener las órdenes base paginadas
+  // Obtener las órdenes base paginadas
   const orders = await db.select()
     .from(orderTable)
     .where(eq(orderTable.restaurant_id, req.restaurant_id))
-    .limit(limit)
+    .orderBy(desc(orderTable.created_at)) // Ordenar de más reciente a más antigua
+    .limit(limit) 
     .offset(offset);
 
   if (orders.length === 0) {
     return res.json([]);
   }
 
-  // 2. Obtener todos los ítems de estas órdenes en una sola consulta
+  // Obtener todos los ítems de estas órdenes en una sola consulta
   const orderIds = orders.map(o => o.id);
   const allItems = await db.select({
     id: orderItem.id,
@@ -30,7 +31,44 @@ export const getAllOrders = async (req, res) => {
   .from(orderItem)
   .where(inArray(orderItem.order_id, orderIds));
 
-  // 3. Agrupar los ítems dentro de sus respectivas órdenes
+  // Agrupar los ítems dentro de sus respectivas órdenes
+  const result = orders.map(order => ({
+    ...order,
+    items: allItems.filter(item => item.orderId === order.id)
+  }));
+
+  res.json(result);
+};
+
+export const getActiveOrders = async (req, res) => {
+  // Obtener todas las órdenes que no estén en estado 4 (Entregado) o 5 (Cancelado)
+  // Ordenadas de más antigua a más reciente, sin paginación
+  const orders = await db.select()
+    .from(orderTable)
+    .where(
+      and(
+        eq(orderTable.restaurant_id, req.restaurant_id),
+        notInArray(orderTable.status_id, [4, 5]) // Excluir estados 4 y 5
+      )
+    )
+    .orderBy(asc(orderTable.created_at)); // Ordenar de más antigua a más reciente
+
+  if (orders.length === 0) {
+    return res.json([]);
+  }
+
+  // Obtener todos los ítems de estas órdenes en una sola consulta
+  const orderIds = orders.map(o => o.id);
+  const allItems = await db.select({
+    id: orderItem.id,
+    orderId: orderItem.order_id,
+    productName: orderItem.product_name,
+    quantity: orderItem.quantity,
+    price_per_dish: orderItem.price_per_dish
+  })
+  .from(orderItem)
+  .where(inArray(orderItem.order_id, orderIds));
+
   const result = orders.map(order => ({
     ...order,
     items: allItems.filter(item => item.orderId === order.id)
@@ -45,7 +83,7 @@ export const getOrderDetails = async (req, res) => {
   const [order] = await db.select().from(orderTable).where(
     and(eq(orderTable.id, parseInt(id)), eq(orderTable.restaurant_id, req.restaurant_id))
   );
-  if (!order) return res.status(404).json({ error: 'Orden no encontrada' });
+  if (!order) return res.status(404).json({ error: 'Order not found' });
 
   const items = await db.select({
     id: orderItem.id,
@@ -60,7 +98,6 @@ export const getOrderDetails = async (req, res) => {
 };
 
 export const createOrder = async (req, res) => {
-  // Asegúrate de que customer_name venga del body
   const { 
     order_reference, 
     customer_name, 
@@ -70,11 +107,11 @@ export const createOrder = async (req, res) => {
   } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'La orden debe incluir al menos un producto' });
+    return res.status(400).json({ error: 'The order must include at least one product' });
   }
 
   try {
-    // 1. Obtener los IDs únicos de los productos para buscarlos en la DB
+    // Obtener los IDs únicos de los productos para buscarlos en la DB
     const productIds = items.map(item => item.productId);
     
     const dbProducts = await db.select()
@@ -85,13 +122,13 @@ export const createOrder = async (req, res) => {
       ));
 
     if (dbProducts.length !== new Set(productIds).size) {
-      return res.status(400).json({ error: 'Uno o más productos no son válidos o no pertenecen al restaurante' });
+      return res.status(400).json({ error: 'One or more products are not valid or do not belong to the restaurant' });
     }
 
     const result = await db.transaction(async (tx) => {
       let calculatedSubtotal = 0;
 
-      // 2. Mapear ítems y calcular subtotales basándose en los precios actuales de la DB
+      // Mapear ítems y calcular subtotales basándose en los precios actuales de la DB
       const itemsToInsert = items.map(item => {
         const productInfo = dbProducts.find(p => p.id === item.productId);
         const pricePerDish = parseFloat(productInfo.price_base);
@@ -107,7 +144,7 @@ export const createOrder = async (req, res) => {
       });
 
       const subtotalStr = calculatedSubtotal.toFixed(2);
-      // 3. Insertar la orden principal
+      // Insertar la orden principal
       const [newOrder] = await tx.insert(orderTable).values({
         restaurant_id: parseInt(req.restaurant_id),
         status_id: 1,
@@ -118,7 +155,7 @@ export const createOrder = async (req, res) => {
         total_adjustment_note
       }).returning();
 
-      // 3. Insertar los detalles de la orden
+      // Insertar los detalles de la orden
       const finalItems = itemsToInsert.map(i => ({ ...i, order_id: newOrder.id }));
       await tx.insert(orderItem).values(finalItems);
       
@@ -127,9 +164,8 @@ export const createOrder = async (req, res) => {
 
     return res.status(201).json(result);
   } catch (error) {
-    // Esto enviará el motivo exacto a Postman
     return res.status(500).json({ 
-      error: 'Error al procesar la orden transaccional',
+      error: 'Error processing order creation:',
       details: error.message 
     });
   }
@@ -144,7 +180,7 @@ export const updateOrderStatus = async (req, res) => {
     .where(and(eq(orderTable.id, parseInt(id)), eq(orderTable.restaurant_id, req.restaurant_id)))
     .returning();
 
-  if (!updatedOrder) return res.status(404).json({ error: 'Orden no encontrada o no autorizada' });
+  if (!updatedOrder) return res.status(404).json({ error: 'Order not found or not authorized' });
   res.json(updatedOrder);
 };
 
@@ -154,6 +190,6 @@ export const deleteOrder = async (req, res) => {
     .where(and(eq(orderTable.id, parseInt(id)), eq(orderTable.restaurant_id, req.restaurant_id)))
     .returning();
 
-  if (!deleted) return res.status(404).json({ error: 'Orden no encontrada o no autorizada' });
-  res.json({ message: 'Orden eliminada físicamente (Cascade activo para items)' });
+  if (!deleted) return res.status(404).json({ error: 'Order not found or not authorized' });
+  res.json({ message: 'Order deleted' });
 };
