@@ -8,6 +8,15 @@ import { getAllOrders, getActiveOrders, getOrderDetails, createOrder, updateOrde
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
 
+// Mensaje de bienvenida para confirmar que los endpoints están activos
+router.get('/', (req, res) => {
+  res.json({ 
+    message: "Bienvenido a la Pupapp API", 
+    status: "online",
+    version: "1.0.0" 
+  });
+});
+
 // Rutas Públicas (Autenticación del Tenant)
 router.post('/auth/register', register);
 router.post('/auth/login', login);
