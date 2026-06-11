@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { validateToken } from '../middleware/auth.js';
-import { register, login } from '../controllers/auth.js';
+import { register, login, refresh } from '../controllers/auth.js';
 import { getAllProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../controllers/products.js';
 import { getAllOrders, getActiveOrders, getOrderDetails, createOrder, updateOrderStatus, deleteOrder } from '../controllers/orders.js';
 
@@ -20,6 +20,7 @@ router.get('/', (req, res) => {
 // Rutas Públicas (Autenticación del Tenant)
 router.post('/auth/register', register);
 router.post('/auth/login', login);
+router.post('/auth/refresh', refresh);
 
 // Rutas Protegidas por Token de Validación de Acceso
 router.get('/products', validateToken, getAllProducts);

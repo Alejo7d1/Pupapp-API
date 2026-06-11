@@ -56,8 +56,25 @@ Estas rutas no requieren un token JWT para ser accedidas.
 *   **Respuesta (JSON):**
     ```json
     {
-      "token": "eyJhbGciOiJIUzI1Ni...",
+      "accessToken": "eyJhbGciOiJIUzI1Ni...",
+      "refreshToken": "eyJhbGciOiJIUzI1Ni...",
       "business_display_name": "Nombre Visible del Restaurante"
+    }
+    ```
+
+#### 3. Refrescar Token de Acceso
+*   **URL:** `POST /api/auth/refresh`
+*   **Descripción:** Permite obtener un nuevo `accessToken` utilizando un `refreshToken` válido. Esto evita que el usuario tenga que iniciar sesión nuevamente después de que el token de acceso corto expire.
+*   **Body (JSON):**
+    ```json
+    {
+      "refreshToken": "tu_refresh_token_aqui"
+    }
+    ```
+*   **Respuesta (JSON):**
+    ```json
+    {
+      "accessToken": "nuevo_token_de_acceso_aqui"
     }
     ```
 
@@ -105,11 +122,15 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
     *   `page`: Número de página (por defecto 1).
     *   `limit`: Cantidad de elementos por página (por defecto 10).
 
-##### 2. Obtener Detalles de una Orden
+##### 2. Obtener Órdenes Activas
+*   **URL:** `GET /api/orders/active`
+*   **Descripción:** Devuelve una lista de todas las órdenes del restaurante que no han sido marcadas como "Entregado" (ID: 4) o "Cancelado" (ID: 5). Se devuelven en orden ascendente por fecha (de la más antigua a la más reciente) para facilitar la gestión en cocina.
+
+##### 3. Obtener Detalles de una Orden
 *   **URL:** `GET /api/orders/:id`
 *   **Descripción:** Devuelve los detalles completos de una orden específica del restaurante autenticado, incluyendo sus ítems.
 
-##### 3. Crear una Nueva Orden
+##### 4. Crear una Nueva Orden
 *   **URL:** `POST /api/orders`
 *   **Descripción:** Crea una nueva orden para el restaurante autenticado.
 *   **Body (JSON):**
@@ -133,7 +154,7 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
     ```
     **Nota:** La tabla `order_item` ahora guarda el `product_name` en lugar del `product_id` para evitar problemas de integridad referencial si un producto es eliminado.
 
-##### 4. Actualizar Estado de una Orden
+##### 5. Actualizar Estado de una Orden
 *   **URL:** `PATCH /api/orders/:id/status`
 *   **Descripción:** Actualiza el `status_id` de una orden específica del restaurante autenticado.
 *   **Body (JSON):**
@@ -143,6 +164,6 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
     }
     ```
 
-##### 5. Eliminar una Orden
+##### 6. Eliminar una Orden
 *   **URL:** `DELETE /api/orders/:id`
 *   **Descripción:** Elimina una orden específica del restaurante autenticado. Debido a la relación `ON DELETE CASCADE`, todos los ítems de la orden también serán eliminados.
