@@ -4,6 +4,9 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
+const time = "10s"; // Tiempo de expiración del token de acceso (10 segundos para pruebas)
+const refreshTime = "60d"; // Tiempo de expiración del token de refresco (60 días)
+
 export const register = async (req, res) => {
   const { access_name, password, business_display_name } = req.body;
   if (!access_name || !password) return res.status(400).json({ error: 'Missing required fields' });
@@ -35,11 +38,11 @@ export const login = async (req, res) => {
       access_name: currentRestaurant.access_name 
     };
 
-    // Token de acceso corto (1 hora)
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // Token de acceso corto (10 segundos)
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: time });
     
     // Token de refresco largo (60 días)
-    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, { expiresIn: '60d' });
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: refreshTime });
 
     res.json({ 
       accessToken, 
@@ -66,7 +69,7 @@ export const refresh = async (req, res) => {
     const newAccessToken = jwt.sign(
       { restaurant_id: decoded.restaurant_id, access_name: decoded.access_name },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: time }
     );
 
     res.json({ accessToken: newAccessToken });
