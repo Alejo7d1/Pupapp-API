@@ -160,7 +160,7 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
 *   **Body (JSON):**
     ```json
     {
-      "status_id": 2 // ID del nuevo estado (ej. 1: Pendiente, 2: Preparando, 3: Entregado)
+      "status_id": 2 // ID del nuevo estado (ej. 1: Pendiente, 2: Preparando, 3: Listo)
     }
     ```
 
