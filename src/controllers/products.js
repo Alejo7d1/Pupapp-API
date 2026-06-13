@@ -19,10 +19,11 @@ export const getAllProducts = async (req, res) => {
 
 export const getProductById = async (req, res) => {
   const { id } = req.params;
-  const [item] = await db.select().from(product).where(
-    and(eq(product.id, parseInt(id)), eq(product.restaurant_id, req.restaurant_id))
-  );
+  const [item] = await db.select().from(product).where(eq(product.id, parseInt(id)));
+
   if (!item) return res.status(404).json({ error: 'Product not found' });
+  if (item.restaurant_id !== req.restaurant_id) return res.status(403).json({ error: 'Forbidden: This product belongs to another restaurant' });
+
   res.json(item);
 };
 
@@ -56,26 +57,31 @@ export const updateProduct = async (req, res) => {
   const { name, price_base, category, image_url: bodyImageUrl } = req.body;
   let finalImageUrl = bodyImageUrl;
 
+  const [item] = await db.select().from(product).where(eq(product.id, parseInt(id)));
+  if (!item) return res.status(404).json({ error: 'Product not found' });
+  if (item.restaurant_id !== req.restaurant_id) return res.status(403).json({ error: 'Forbidden: You cannot modify products from another restaurant' });
+
   if (req.file) {
     finalImageUrl = await uploadToR2(req.file, req.access_name);
   }
   
   const [updatedProduct] = await db.update(product)
     .set({ name, price_base, category, image_url: finalImageUrl })
-    .where(and(eq(product.id, parseInt(id)), eq(product.restaurant_id, req.restaurant_id)))
+    .where(eq(product.id, parseInt(id)))
     .returning();
 
-  if (!updatedProduct) return res.status(404).json({ error: 'Product not found or not authorized' });
   res.json(updatedProduct);
 };
 
 export const deleteProduct = async (req, res) => {
   const { id } = req.params;
-  const [deleted] = await db.delete(product)
-    .where(and(eq(product.id, parseInt(id)), eq(product.restaurant_id, req.restaurant_id)))
-    .returning();
+  const [item] = await db.select().from(product).where(eq(product.id, parseInt(id)));
+  if (!item) return res.status(404).json({ error: 'Product not found' });
+  if (item.restaurant_id !== req.restaurant_id) return res.status(403).json({ error: 'Forbidden: You cannot delete products from another restaurant' });
 
-  if (!deleted) return res.status(404).json({ error: 'Product not found or not authorized' });
+  const [deleted] = await db.delete(product)
+    .where(eq(product.id, parseInt(id)))
+    .returning();
 
   // Si el producto tenía una imagen en R2, la eliminamos
   if (deleted.image_url) {

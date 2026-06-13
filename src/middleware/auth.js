@@ -12,13 +12,13 @@ export const validateToken = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     if (!decoded.restaurant_id) {
-      return res.status(403).json({ error: 'Bad token: missing restaurant_id' });
+      return res.status(401).json({ error: 'Bad token: missing restaurant_id' });
     }
 
     req.restaurant_id = Number(decoded.restaurant_id);
     req.access_name = decoded.access_name;
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Bad token: invalid or expired' });
+    return res.status(401).json({ error: 'Bad token: invalid or expired' });
   }
 };

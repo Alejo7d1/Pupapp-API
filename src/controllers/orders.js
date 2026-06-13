@@ -80,10 +80,11 @@ export const getActiveOrders = async (req, res) => {
 export const getOrderDetails = async (req, res) => {
   const { id } = req.params;
   
-  const [order] = await db.select().from(orderTable).where(
-    and(eq(orderTable.id, parseInt(id)), eq(orderTable.restaurant_id, req.restaurant_id))
-  );
+  const [order] = await db.select().from(orderTable).where(eq(orderTable.id, parseInt(id)));
+
   if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.restaurant_id !== req.restaurant_id) return res.status(403).json({ error: 'Forbidden: Access to this order is denied' });
+
 
   const items = await db.select({
     id: orderItem.id,
@@ -175,21 +176,27 @@ export const updateOrderStatus = async (req, res) => {
   const { id } = req.params;
   const { status_id } = req.body;
 
+  const [order] = await db.select().from(orderTable).where(eq(orderTable.id, parseInt(id)));
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.restaurant_id !== req.restaurant_id) return res.status(403).json({ error: 'Forbidden: You cannot update orders from another restaurant' });
+
   const [updatedOrder] = await db.update(orderTable)
     .set({ status_id, updated_at: new Date() })
-    .where(and(eq(orderTable.id, parseInt(id)), eq(orderTable.restaurant_id, req.restaurant_id)))
+    .where(eq(orderTable.id, parseInt(id)))
     .returning();
 
-  if (!updatedOrder) return res.status(404).json({ error: 'Order not found or not authorized' });
   res.json(updatedOrder);
 };
 
 export const deleteOrder = async (req, res) => {
   const { id } = req.params;
+  const [order] = await db.select().from(orderTable).where(eq(orderTable.id, parseInt(id)));
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.restaurant_id !== req.restaurant_id) return res.status(403).json({ error: 'Forbidden: You cannot delete orders from another restaurant' });
+
   const [deleted] = await db.delete(orderTable)
-    .where(and(eq(orderTable.id, parseInt(id)), eq(orderTable.restaurant_id, req.restaurant_id)))
+    .where(eq(orderTable.id, parseInt(id)))
     .returning();
 
-  if (!deleted) return res.status(404).json({ error: 'Order not found or not authorized' });
   res.json({ message: 'Order deleted' });
 };
