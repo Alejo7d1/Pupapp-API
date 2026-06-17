@@ -1,6 +1,6 @@
 import { pgTable, serial, text, integer, decimal, timestamp } from 'drizzle-orm/pg-core';
 
-// 1. Restaurant table - The main tenant
+// Tabla de restaurantes
 export const restaurant = pgTable('restaurant', {
   id: serial('id').primaryKey(),
   access_name: text('access_name').unique().notNull(),
@@ -9,7 +9,7 @@ export const restaurant = pgTable('restaurant', {
   created_at: timestamp('created_at').defaultNow(),
 });
 
-// 2. Product table - Belongs to a restaurant
+// tabla de productos, cada producto pertenece a un restaurante
 export const product = pgTable('product', {
   id: serial('id').primaryKey(),
   restaurant_id: integer('restaurant_id').references(() => restaurant.id, { onDelete: 'cascade' }).notNull(),
@@ -19,13 +19,13 @@ export const product = pgTable('product', {
   image_url: text('image_url'),
 });
 
-// 3. Order status table - Shared reference
+// Tabla de estados de orden (Pendiente, En preparación, Listo, Entregado, Cancelado)
 export const orderStatus = pgTable('order_status', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
 });
 
-// 4. Order table - Belongs to a restaurant
+// Tabla de órdenes, cada orden pertenece a un restaurante y tiene un estado
 export const orderTable = pgTable('order_table', {
   id: serial('id').primaryKey(),
   restaurant_id: integer('restaurant_id').references(() => restaurant.id, { onDelete: 'cascade' }).notNull(),
@@ -39,7 +39,7 @@ export const orderTable = pgTable('order_table', {
   updated_at: timestamp('updated_at').defaultNow(),
 });
 
-// 5. Order item table - Belongs to an order
+// Tabla de detalles de orden, cada detalle pertenece a una orden y contiene información del producto pedido (nombre, cantidad, precio por plato)
 export const orderItem = pgTable('order_item', {
   id: serial('id').primaryKey(),
   order_id: integer('order_id').references(() => orderTable.id, { onDelete: 'cascade' }).notNull(),
