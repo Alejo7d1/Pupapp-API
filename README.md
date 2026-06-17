@@ -126,11 +126,18 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
 *   **URL:** `GET /api/orders/active`
 *   **Descripción:** Devuelve una lista de todas las órdenes del restaurante que no han sido marcadas como "Entregado" (ID: 4) o "Cancelado" (ID: 5). Se devuelven en orden ascendente por fecha (de la más antigua a la más reciente) para facilitar la gestión en cocina.
 
-##### 3. Obtener Detalles de una Orden
+##### 3. Obtener Órdenes Entregadas por Periodo
+*   **URL:** `GET /api/orders/delivered`
+*   **Descripción:** Devuelve una lista de todas las órdenes del restaurante que han sido marcadas como "Entregado" (ID: 4) dentro de un rango de fechas determinado. A diferencia de otros listados, este no está paginado para facilitar la consolidación de datos del periodo solicitado.
+*   **Query Params (Requeridos):**
+    *   `startDate`: Fecha de inicio del periodo (formato `YYYY-MM-DD`).
+    *   `endDate`: Fecha de fin del periodo (formato `YYYY-MM-DD`).
+
+##### 4. Obtener Detalles de una Orden
 *   **URL:** `GET /api/orders/:id`
 *   **Descripción:** Devuelve los detalles completos de una orden específica del restaurante autenticado, incluyendo sus ítems.
 
-##### 4. Crear una Nueva Orden
+##### 5. Crear una Nueva Orden
 *   **URL:** `POST /api/orders`
 *   **Descripción:** Crea una nueva orden para el restaurante autenticado.
 *   **Body (JSON):**
@@ -154,7 +161,7 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
     ```
     **Nota:** La tabla `order_item` ahora guarda el `product_name` en lugar del `product_id` para evitar problemas de integridad referencial si un producto es eliminado.
 
-##### 5. Actualizar Estado de una Orden
+##### 6. Actualizar Estado de una Orden
 *   **URL:** `PATCH /api/orders/:id/status`
 *   **Descripción:** Actualiza el `status_id` de una orden específica del restaurante autenticado.
 *   **Body (JSON):**
@@ -164,6 +171,6 @@ Todas estas rutas requieren un token JWT válido en el encabezado `Authorization
     }
     ```
 
-##### 6. Eliminar una Orden
+##### 7. Eliminar una Orden
 *   **URL:** `DELETE /api/orders/:id`
 *   **Descripción:** Elimina una orden específica del restaurante autenticado. Debido a la relación `ON DELETE CASCADE`, todos los ítems de la orden también serán eliminados.

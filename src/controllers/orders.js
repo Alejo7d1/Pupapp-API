@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { orderTable, orderItem, product } from '../db/schema.js';
-import { eq, and, inArray, notInArray, desc, asc } from 'drizzle-orm';
+import { eq, and, inArray, notInArray, desc, asc, gte, lte } from 'drizzle-orm';
 
 export const getAllOrders = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
@@ -42,7 +42,7 @@ export const getAllOrders = async (req, res) => {
 
 export const getActiveOrders = async (req, res) => {
   // Obtener todas las órdenes que no estén en estado 4 (Entregado) o 5 (Cancelado)
-  // Ordenadas de más antigua a más reciente, sin paginación
+  // Ordenadas de más antigua a más reciente
   const orders = await db.select()
     .from(orderTable)
     .where(
@@ -75,6 +75,49 @@ export const getActiveOrders = async (req, res) => {
   }));
 
   res.json(result);
+};
+
+export const getDeliveredOrdersByPeriod = async (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'startDate and endDate are required (format YYYY-MM-DD)' });
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999); // Asegurar que incluya todo el día final
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return res.status(400).json({ error: 'Invalid date format' });
+  }
+
+  const orders = await db.select()
+    .from(orderTable)
+    .where(
+      and(
+        eq(orderTable.restaurant_id, req.restaurant_id),
+        eq(orderTable.status_id, 4), // Solo órdenes entregadas
+        gte(orderTable.created_at, start),
+        lte(orderTable.created_at, end)
+      )
+    )
+    .orderBy(desc(orderTable.created_at));
+
+  if (orders.length === 0) return res.json([]);
+
+  const orderIds = orders.map(o => o.id);
+  const allItems = await db.select({
+    id: orderItem.id,
+    orderId: orderItem.order_id,
+    productName: orderItem.product_name,
+    quantity: orderItem.quantity,
+    price_per_dish: orderItem.price_per_dish
+  })
+  .from(orderItem)
+  .where(inArray(orderItem.order_id, orderIds));
+
+  res.json(orders.map(o => ({ ...o, items: allItems.filter(i => i.orderId === o.id) })));
 };
 
 export const getOrderDetails = async (req, res) => {
