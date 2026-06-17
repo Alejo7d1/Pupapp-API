@@ -17,7 +17,11 @@ export const register = async (req, res) => {
     });
     res.status(201).json({ message: 'Restaurant registered successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'The access_name already exists or there was a server error' });
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'The access_name already exists' });
+    }
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Error processing registration' });
   }
 };
 

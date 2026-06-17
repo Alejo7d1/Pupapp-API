@@ -3,121 +3,134 @@ import { orderTable, orderItem, product } from '../db/schema.js';
 import { eq, and, inArray, notInArray, desc, asc, gte, lte } from 'drizzle-orm';
 
 export const getAllOrders = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const offset = (page - 1) * limit;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
-  // Obtener las órdenes base paginadas
-  const orders = await db.select()
-    .from(orderTable)
-    .where(eq(orderTable.restaurant_id, req.restaurant_id))
-    .orderBy(desc(orderTable.created_at)) // Ordenar de más reciente a más antigua
-    .limit(limit) 
-    .offset(offset);
+    // Obtener las órdenes base paginadas
+    const orders = await db.select()
+      .from(orderTable)
+      .where(eq(orderTable.restaurant_id, req.restaurant_id))
+      .orderBy(desc(orderTable.created_at))
+      .limit(limit) 
+      .offset(offset);
 
-  if (orders.length === 0) {
-    return res.json([]);
+    if (orders.length === 0) {
+      return res.json([]);
+    }
+
+    // Obtener todos los ítems de estas órdenes en una sola consulta
+    const orderIds = orders.map(o => o.id);
+    const allItems = await db.select({
+      id: orderItem.id,
+      orderId: orderItem.order_id,
+      productName: orderItem.product_name,
+      quantity: orderItem.quantity,
+      price_per_dish: orderItem.price_per_dish
+    })
+    .from(orderItem)
+    .where(inArray(orderItem.order_id, orderIds));
+
+    // Agrupar los ítems dentro de sus respectivas órdenes
+    const result = orders.map(order => ({
+      ...order,
+      items: allItems.filter(item => item.orderId === order.id)
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getAllOrders:', error);
+    res.status(500).json({ error: 'Error al obtener órdenes', details: error.message });
   }
-
-  // Obtener todos los ítems de estas órdenes en una sola consulta
-  const orderIds = orders.map(o => o.id);
-  const allItems = await db.select({
-    id: orderItem.id,
-    orderId: orderItem.order_id,
-    productName: orderItem.product_name,
-    quantity: orderItem.quantity,
-    price_per_dish: orderItem.price_per_dish
-  })
-  .from(orderItem)
-  .where(inArray(orderItem.order_id, orderIds));
-
-  // Agrupar los ítems dentro de sus respectivas órdenes
-  const result = orders.map(order => ({
-    ...order,
-    items: allItems.filter(item => item.orderId === order.id)
-  }));
-
-  res.json(result);
 };
 
 export const getActiveOrders = async (req, res) => {
-  // Obtener todas las órdenes que no estén en estado 4 (Entregado) o 5 (Cancelado)
-  // Ordenadas de más antigua a más reciente
-  const orders = await db.select()
-    .from(orderTable)
-    .where(
-      and(
-        eq(orderTable.restaurant_id, req.restaurant_id),
-        notInArray(orderTable.status_id, [4, 5]) // Excluir estados 4 y 5
+  try {
+    const orders = await db.select()
+      .from(orderTable)
+      .where(
+        and(
+          eq(orderTable.restaurant_id, req.restaurant_id),
+          notInArray(orderTable.status_id, [4, 5])
+        )
       )
-    )
-    .orderBy(asc(orderTable.created_at)); // Ordenar de más antigua a más reciente
+      .orderBy(asc(orderTable.created_at));
 
-  if (orders.length === 0) {
-    return res.json([]);
+    if (orders.length === 0) {
+      return res.json([]);
+    }
+
+    const orderIds = orders.map(o => o.id);
+    const allItems = await db.select({
+      id: orderItem.id,
+      orderId: orderItem.order_id,
+      productName: orderItem.product_name,
+      quantity: orderItem.quantity,
+      price_per_dish: orderItem.price_per_dish
+    })
+    .from(orderItem)
+    .where(inArray(orderItem.order_id, orderIds));
+
+    const result = orders.map(order => ({
+      ...order,
+      items: allItems.filter(item => item.orderId === order.id)
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getActiveOrders:', error);
+    res.status(500).json({ error: 'Error al obtener órdenes activas', details: error.message });
   }
-
-  // Obtener todos los ítems de estas órdenes en una sola consulta
-  const orderIds = orders.map(o => o.id);
-  const allItems = await db.select({
-    id: orderItem.id,
-    orderId: orderItem.order_id,
-    productName: orderItem.product_name,
-    quantity: orderItem.quantity,
-    price_per_dish: orderItem.price_per_dish
-  })
-  .from(orderItem)
-  .where(inArray(orderItem.order_id, orderIds));
-
-  const result = orders.map(order => ({
-    ...order,
-    items: allItems.filter(item => item.orderId === order.id)
-  }));
-
-  res.json(result);
 };
 
+// Endpoint para obtener ordenes entregadas dentro de un rango de fechas
 export const getDeliveredOrdersByPeriod = async (req, res) => {
-  const { startDate, endDate } = req.query;
+  try {
+    const { startDate, endDate } = req.query;
 
-  if (!startDate || !endDate) {
-    return res.status(400).json({ error: 'startDate and endDate are required (format YYYY-MM-DD)' });
-  }
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required (format YYYY-MM-DD)' });
+    }
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999); // Asegurar que incluya todo el día final
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
 
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    return res.status(400).json({ error: 'Invalid date format' });
-  }
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
 
-  const orders = await db.select()
-    .from(orderTable)
-    .where(
-      and(
-        eq(orderTable.restaurant_id, req.restaurant_id),
-        eq(orderTable.status_id, 4), // Solo órdenes entregadas
-        gte(orderTable.created_at, start),
-        lte(orderTable.created_at, end)
+    const orders = await db.select()
+      .from(orderTable)
+      .where(
+        and(
+          eq(orderTable.restaurant_id, req.restaurant_id),
+          eq(orderTable.status_id, 4),
+          gte(orderTable.created_at, start),
+          lte(orderTable.created_at, end)
+        )
       )
-    )
-    .orderBy(desc(orderTable.created_at));
+      .orderBy(desc(orderTable.created_at));
 
-  if (orders.length === 0) return res.json([]);
+    if (orders.length === 0) return res.json([]);
 
-  const orderIds = orders.map(o => o.id);
-  const allItems = await db.select({
-    id: orderItem.id,
-    orderId: orderItem.order_id,
-    productName: orderItem.product_name,
-    quantity: orderItem.quantity,
-    price_per_dish: orderItem.price_per_dish
-  })
-  .from(orderItem)
-  .where(inArray(orderItem.order_id, orderIds));
+    const orderIds = orders.map(o => o.id);
+    const allItems = await db.select({
+      id: orderItem.id,
+      orderId: orderItem.order_id,
+      productName: orderItem.product_name,
+      quantity: orderItem.quantity,
+      price_per_dish: orderItem.price_per_dish
+    })
+    .from(orderItem)
+    .where(inArray(orderItem.order_id, orderIds));
 
-  res.json(orders.map(o => ({ ...o, items: allItems.filter(i => i.orderId === o.id) })));
+    res.json(orders.map(o => ({ ...o, items: allItems.filter(i => i.orderId === o.id) })));
+  } catch (error) {
+    console.error('Error in getDeliveredOrdersByPeriod:', error);
+    res.status(500).json({ error: 'Error al obtener órdenes del periodo', details: error.message });
+  }
 };
 
 export const getOrderDetails = async (req, res) => {
