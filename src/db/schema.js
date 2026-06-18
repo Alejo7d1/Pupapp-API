@@ -30,6 +30,7 @@ export const orderTable = pgTable('order_table', {
   id: serial('id').primaryKey(),
   restaurant_id: integer('restaurant_id').references(() => restaurant.id, { onDelete: 'cascade' }).notNull(),
   status_id: integer('status_id').references(() => orderStatus.id),
+  order_number: integer('order_number').notNull(),
   order_reference: text('order_reference'),
   customer_name: text('customer_name'),
   calculated_subtotal: decimal('calculated_subtotal', { precision: 10, scale: 2 }).notNull(),

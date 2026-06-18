@@ -183,6 +183,23 @@ export const createOrder = async (req, res) => {
     }
 
     const result = await db.transaction(async (tx) => {
+      // Calcular el número de orden correlativo para el día de hoy
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const [lastOrderToday] = await tx.select({ order_number: orderTable.order_number })
+        .from(orderTable)
+        .where(
+          and(
+            eq(orderTable.restaurant_id, parseInt(req.restaurant_id)),
+            gte(orderTable.created_at, startOfDay)
+          )
+        )
+        .orderBy(desc(orderTable.order_number))
+        .limit(1);
+
+      const nextOrderNumber = lastOrderToday ? lastOrderToday.order_number + 1 : 1;
+
       let calculatedSubtotal = 0;
 
       // Mapear ítems y calcular subtotales basándose en los precios actuales de la DB
@@ -205,6 +222,7 @@ export const createOrder = async (req, res) => {
       const [newOrder] = await tx.insert(orderTable).values({
         restaurant_id: parseInt(req.restaurant_id),
         status_id: 1,
+        order_number: nextOrderNumber,
         order_reference,
         customer_name,
         calculated_subtotal: subtotalStr,
